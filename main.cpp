@@ -3,12 +3,14 @@
 #include <string>
 #include <cmath>
 #include <queue>
-#include <cstdlib>
-#include <ctime>
+#include <random>
 #include "include/Example.h"
 #include <algorithm>
 
 using namespace std;
+
+random_device rd;
+mt19937 rng(rd());
 
 class Obiect {
 private:
@@ -18,11 +20,11 @@ private:
 
 public:
     explicit Obiect(string idNume = "Necunoscut", int bonus = 0, char simbol = '?')
-        : nume(idNume), bonusEnergie(bonus), simbolHarta(simbol) {}
+        : nume(std::move(idNume)), bonusEnergie(bonus), simbolHarta(simbol) {}
 
-    const string& preiaNume() const { return nume; }
-    int preiaBonus() const { return bonusEnergie; }
-    char preiaSimbol() const { return simbolHarta; }
+    [[nodiscard]] const string& preiaNume() const { return nume; }
+    [[nodiscard]] int preiaBonus() const { return bonusEnergie; }
+    [[nodiscard]] char preiaSimbol() const { return simbolHarta; }
 
     friend ostream& operator<<(ostream& os, const Obiect& obj);
 };
@@ -66,11 +68,10 @@ public:
         return bonus;
     }
 
-    bool contineObiectCuSimbol(char simbol) const {
-        for (const auto& ob : elemente) {
-            if (ob.preiaSimbol() == simbol) return true;
-        }
-        return false;
+    [[nodiscard]] bool contineObiectCuSimbol(char simbol) const {
+        return std::ranges::any_of(elemente, [simbol](const auto& ob) {
+            return ob.preiaSimbol() == simbol;
+        });
     }
 
     void eliminaObiectCuSimbol(char simbol) {
@@ -96,11 +97,11 @@ private:
     vector<vector<bool>> grilaVizibilitate;
     int dimensiune;
 
-    bool verificaDrumBFS(int startX, int startY, int endX, int endY) const {
+    [[nodiscard]] bool verificaDrumBFS(int startX, int startY, int endX, int endY) const {
         vector<vector<bool>> vizitat(dimensiune, vector<bool>(dimensiune, false));
         queue<pair<int, int>> coadaBFS;
 
-        coadaBFS.push({startX, startY});
+        coadaBFS.emplace(startX, startY);
         vizitat[startX][startY] = true;
 
         const int dx[] = {-1, 1, 0, 0};
@@ -119,7 +120,7 @@ private:
                 if (nx >= 0 && nx < dimensiune && ny >= 0 && ny < dimensiune) {
                     if (!vizitat[nx][ny] && grila[nx][ny] != '#') {
                         vizitat[nx][ny] = true;
-                        coadaBFS.push({nx, ny});
+                        coadaBFS.emplace(nx, ny);
                     }
                 }
             }
@@ -146,7 +147,7 @@ public:
             }
             for(int i = 1; i < dimensiune - 1; i++) {
                 for(int j = 1; j < dimensiune - 1; j++) {
-                    if (rand() % 100 < 20) {
+                    if (uniform_int_distribution<int> dist(0, 99); dist(rng) < 20) {
                         grila[i][j] = '#';
                     }
                 }
@@ -159,8 +160,7 @@ public:
         }
     }
 
-    Harta(const Harta& other) : grila(other.grila),
-        grilaVizibilitate(other.grilaVizibilitate), dimensiune(other.dimensiune) {}
+    Harta(const Harta& other) = default;
 
     Harta& operator=(const Harta& other) {
         if (this != &other) {
@@ -171,14 +171,14 @@ public:
         return *this;
     }
 
-    int preiaDimensiunea() const { return dimensiune; }
+    [[nodiscard]] int preiaDimensiunea() const { return dimensiune; }
 
-    bool esteZid(int x, int y) const {
+    [[nodiscard]] bool esteZid(int x, int y) const {
         if (x < 0 || x >= dimensiune || y < 0 || y >= dimensiune) return true;
         return grila[x][y] == '#';
     }
 
-    char preiaCelula(int x, int y) const {
+    [[nodiscard]] char preiaCelula(int x, int y) const {
         if (x < 0 || x >= dimensiune || y < 0 || y >= dimensiune) return '#';
         return grila[x][y];
     }
@@ -234,9 +234,9 @@ public:
     explicit Jucator(int startX = 1, int startY = 1, int startEnergie = 60)
         : x(startX), y(startY), energie(startEnergie), rucsac(3), areCheie(false) {}
 
-    int preiaX() const { return x; }
-    int preiaY() const { return y; }
-    int preiaEnergie() const { return energie; }
+    [[nodiscard]] int preiaX() const { return x; }
+    [[nodiscard]] int preiaY() const { return y; }
+    [[nodiscard]] int preiaEnergie() const { return energie; }
 
     void incarcaEnergie(int prada) {
         energie += prada;
@@ -256,7 +256,7 @@ public:
         return rucsac.adauga(obj);
     }
 
-    bool posedaCheie() const { return areCheie; }
+    [[nodiscard]] bool posedaCheie() const { return areCheie; }
 
     void beaPotiuneDinInventar() {
         int val = rucsac.consumaPrimulObiect();
@@ -322,8 +322,8 @@ public:
 
     virtual ~VanatorAI() = default;
 
-    int preiaX() const { return x; }
-    int preiaY() const { return y; }
+    [[nodiscard]] int preiaX() const { return x; }
+    [[nodiscard]] int preiaY() const { return y; }
     void reseteazaPozitie(int tx, int ty) { x = tx; y = ty; }
 
     virtual void muta(const Jucator& jucator, const Harta& harta) {
@@ -354,7 +354,7 @@ public:
         y = celMaiBunY;
     }
 
-    virtual char preiaSimbol() const { return 'V'; }
+    [[nodiscard]] virtual char preiaSimbol() const { return 'V'; }
 
     friend ostream& operator<<(ostream& os, const VanatorAI& v);
 };
@@ -378,18 +378,19 @@ public:
             int nx = x + dx[i];
             int ny = y + dy[i];
             if (!harta.esteZid(nx, ny)) {
-                mutariPosibile.push_back({nx, ny});
+                mutariPosibile.emplace_back(nx, ny);
             }
         }
 
         if (!mutariPosibile.empty()) {
-            int alegere = rand() % mutariPosibile.size();
+            uniform_int_distribution<size_t> dist(0, mutariPosibile.size() - 1);
+            size_t alegere = dist(rng);
             x = mutariPosibile[alegere].first;
             y = mutariPosibile[alegere].second;
         }
     }
 
-    char preiaSimbol() const override { return 'F'; }
+    [[nodiscard]] char preiaSimbol() const override { return 'F'; }
 };
 
 class MotorJoc {
@@ -407,19 +408,23 @@ private:
 
     void genereazaLoot() {
         int maxLoot = 5;
+        int dim = harta.preiaDimensiunea();
+        uniform_int_distribution<int> xyDist(0, dim - 1);
+        uniform_int_distribution<int> tipDist(0, 2);
+        uniform_int_distribution<int> damageDist(5, 12);
         while ((int)obiectePeHarta.size() < maxLoot) {
-            int bx = rand() % harta.preiaDimensiunea();
-            int by = rand() % harta.preiaDimensiunea();
+            int bx = xyDist(rng);
+            int by = xyDist(rng);
             bool ocupat = false;
-            for (size_t i = 0; i < coordObiecte.size(); i++) {
-                if (coordObiecte[i].first == bx && coordObiecte[i].second == by) {
+            for (const auto& coord : coordObiecte) {
+                if (coord.first == bx && coord.second == by) {
                     ocupat = true;
                     break;
                 }
             }
             if (!harta.esteZid(bx, by) && !(bx == 1 && by == 1) && !ocupat) {
                 Obiect ob;
-                int tip = rand() % 3;
+                int tip = tipDist(rng);
                 if (tip == 0) {
                     ob = Obiect("Baterie Duracell", 18, 'B');
                 } else if (tip == 1) {
@@ -428,7 +433,7 @@ private:
                     ob = Obiect("Elixir Vital", 30, 'E');
                 }
                 obiectePeHarta.push_back(ob);
-                coordObiecte.push_back({bx, by});
+                coordObiecte.emplace_back(bx, by);
                 harta.seteazaEntitate(bx, by, ob.preiaSimbol());
             }
         }
@@ -436,8 +441,8 @@ private:
         if (!cheiePlasata) {
             bool plasat = false;
             while (!plasat) {
-                int kx = rand() % harta.preiaDimensiunea();
-                int ky = rand() % harta.preiaDimensiunea();
+                int kx = xyDist(rng);
+                int ky = xyDist(rng);
                 if (!harta.esteZid(kx, ky) && !(kx == 1 && ky == 1) && !(kx == xDestinatie && ky == yDestinatie)) {
                     harta.seteazaEntitate(kx, ky, 'K');
                     plasat = true;
@@ -448,19 +453,19 @@ private:
 
         int numarCapcane = 4;
         for (int i = 0; i < numarCapcane; i++) {
-            int cx = rand() % harta.preiaDimensiunea();
-            int cy = rand() % harta.preiaDimensiunea();
+            int cx = xyDist(rng);
+            int cy = xyDist(rng);
             if (!harta.esteZid(cx, cy) && !(cx == 1 && cy == 1) && !(cx == xDestinatie && cy == yDestinatie)) {
                 bool suprapus = false;
-                for (size_t j = 0; j < pozitiiCapcane.size(); j++) {
-                    if (pozitiiCapcane[j].first == cx && pozitiiCapcane[j].second == cy) { suprapus = true; break; }
+                for (const auto& p : pozitiiCapcane) {
+                    if (p.first == cx && p.second == cy) { suprapus = true; break; }
                 }
-                for (size_t j = 0; j < coordObiecte.size(); j++) {
-                    if (coordObiecte[j].first == cx && coordObiecte[j].second == cy) { suprapus = true; break; }
+                for (const auto& coord : coordObiecte) {
+                    if (coord.first == cx && coord.second == cy) { suprapus = true; break; }
                 }
                 if (!suprapus) {
-                    pozitiiCapcane.push_back({cx, cy});
-                    dauneCapcane.push_back(rand() % 8 + 5);
+                    pozitiiCapcane.emplace_back(cx, cy);
+                    dauneCapcane.push_back(damageDist(rng));
                     harta.seteazaEntitate(cx, cy, 'T');
                 }
             }
@@ -468,8 +473,8 @@ private:
     }
 
     void curataInamici() {
-        for (size_t i = 0; i < inamici.size(); i++) {
-            delete inamici[i];
+        for (auto& inamic : inamici) {
+            delete inamic;
         }
         inamici.clear();
     }
@@ -496,12 +501,16 @@ public:
         cout << "         P=Teleportor, E=Elixir, K=Cheie, T=Capcana, D=Iesire, ?=Ceata\n\n";
         cout << "Scor initial: " << scor << "\n";
 
+        uniform_int_distribution<int> moveDist(0, 99);
+        int dim = harta.preiaDimensiunea();
+        uniform_int_distribution<int> tpDist(0, dim - 1);
+
         while (true) {
             int prevJX = jucator.preiaX();
             int prevJY = jucator.preiaY();
             vector<pair<int,int>> prevInamici;
-            for (size_t i = 0; i < inamici.size(); i++) {
-                prevInamici.push_back({inamici[i]->preiaX(), inamici[i]->preiaY()});
+            for (auto& inamic : inamici) {
+                prevInamici.emplace_back(inamic->preiaX(), inamic->preiaY());
             }
 
             harta.seteazaEntitate(xDestinatie, yDestinatie, 'D');
@@ -512,8 +521,8 @@ public:
                 }
             }
 
-            for (size_t i = 0; i < pozitiiCapcane.size(); i++) {
-                harta.seteazaEntitate(pozitiiCapcane[i].first, pozitiiCapcane[i].second, 'T');
+            for (const auto& p : pozitiiCapcane) {
+                harta.seteazaEntitate(p.first, p.second, 'T');
             }
 
             for (size_t i = 0; i < coordObiecte.size(); i++) {
@@ -539,15 +548,15 @@ public:
                     cout << "\n[!!!] Ai calcat intr-o capcana! Pierzi " << dauna << " energie.\n";
                     jucator.scadeEnergie(dauna);
                     scor -= 5;
-                    pozitiiCapcane.erase(pozitiiCapcane.begin() + i);
-                    dauneCapcane.erase(dauneCapcane.begin() + i);
+                    pozitiiCapcane.erase(pozitiiCapcane.begin() + static_cast<long>(i));
+                    dauneCapcane.erase(dauneCapcane.begin() + static_cast<long>(i));
                     i--;
                 }
             }
 
             harta.seteazaEntitate(jucator.preiaX(), jucator.preiaY(), 'J');
-            for (size_t i = 0; i < inamici.size(); i++) {
-                harta.seteazaEntitate(inamici[i]->preiaX(), inamici[i]->preiaY(), inamici[i]->preiaSimbol());
+            for (auto& inamic : inamici) {
+                harta.seteazaEntitate(inamic->preiaX(), inamic->preiaY(), inamic->preiaSimbol());
             }
 
             harta.calculeazaCampVizual(jucator.preiaX(), jucator.preiaY(), 3);
@@ -557,8 +566,8 @@ public:
             cout << "Actiuni: [w/a/s/d]=Misca | [e]=Foloseste Baterie Rucsac | [t]=Teleportor | [q]=Abandon\nAlege miscare: ";
 
             bool capturat = false;
-            for (size_t i = 0; i < inamici.size(); i++) {
-                if (jucator.preiaX() == inamici[i]->preiaX() && jucator.preiaY() == inamici[i]->preiaY()) {
+            for (auto& inamic : inamici) {
+                if (jucator.preiaX() == inamic->preiaX() && jucator.preiaY() == inamic->preiaY()) {
                     capturat = true;
                     break;
                 }
@@ -595,16 +604,16 @@ public:
                 jucator.folosesteTeleportor();
                 int nx, ny;
                 do {
-                    nx = rand() % harta.preiaDimensiunea();
-                    ny = rand() % harta.preiaDimensiunea();
+                    nx = tpDist(rng);
+                    ny = tpDist(rng);
                 } while (harta.esteZid(nx, ny));
                 jucator.seteazaPozitia(nx, ny);
                 cout << "Te-ai teleportat la (" << nx << ", " << ny << ").\n";
             } else if (optiune == 'w' || optiune == 'a' || optiune == 's' || optiune == 'd') {
                 jucator.muta(optiune, harta);
-                for (size_t i = 0; i < inamici.size(); i++) {
-                    if (rand() % 100 > 20) {
-                        inamici[i]->muta(jucator, harta);
+                for (auto& inamic : inamici) {
+                    if (moveDist(rng) > 20) {
+                        inamic->muta(jucator, harta);
                     }
                 }
             } else {
@@ -623,15 +632,16 @@ public:
 
 ostream& operator<<(ostream& os, const MotorJoc& mj) {
     os << mj.jucator << "\n";
-    for (size_t i = 0; i < mj.inamici.size(); i++) {
-        os << *(mj.inamici[i]) << "\n";
+    for (auto inamic : mj.inamici) {
+        os << *inamic << "\n";
     }
     os << mj.harta;
     return os;
 }
 
 int main() {
-    srand(static_cast<unsigned>(time(NULL)));
+    (void)rd;
+    (void)rng;
 
     Example exemplu;
     exemplu.g();
