@@ -509,7 +509,8 @@ public:
             int prevJX = jucator.preiaX();
             int prevJY = jucator.preiaY();
             vector<pair<int,int>> prevInamici;
-            for (auto& inamic : inamici) {
+            prevInamici.reserve(inamici.size());
+            for (auto* const inamic : inamici) {
                 prevInamici.emplace_back(inamic->preiaX(), inamic->preiaY());
             }
 
@@ -555,7 +556,7 @@ public:
             }
 
             harta.seteazaEntitate(jucator.preiaX(), jucator.preiaY(), 'J');
-            for (auto& inamic : inamici) {
+            for (auto* const inamic : inamici) {
                 harta.seteazaEntitate(inamic->preiaX(), inamic->preiaY(), inamic->preiaSimbol());
             }
 
@@ -566,7 +567,7 @@ public:
             cout << "Actiuni: [w/a/s/d]=Misca | [e]=Foloseste Baterie Rucsac | [t]=Teleportor | [q]=Abandon\nAlege miscare: ";
 
             bool capturat = false;
-            for (auto& inamic : inamici) {
+            for (auto* const inamic : inamici) {
                 if (jucator.preiaX() == inamic->preiaX() && jucator.preiaY() == inamic->preiaY()) {
                     capturat = true;
                     break;
@@ -632,7 +633,7 @@ public:
 
 ostream& operator<<(ostream& os, const MotorJoc& mj) {
     os << mj.jucator << "\n";
-    for (auto inamic : mj.inamici) {
+    for (const auto* inamic : mj.inamici) {
         os << *inamic << "\n";
     }
     os << mj.harta;
